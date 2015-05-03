@@ -8,6 +8,9 @@ import caffe
 import numpy as np
 import pandas as pd
 
+import serial
+import time
+
 MODEL_FILE = caffe_root + 'models/bvlc_reference_caffenet/deploy.prototxt'
 PRETRAINED = caffe_root + 'models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel'
 LABELS_FILE = caffe_root + '/data/ilsvrc12/synset_words.txt'
@@ -16,6 +19,11 @@ import cv2
 from video import create_capture
 
 if __name__ == '__main__':
+
+#	#open serial
+#	ser = serial.Serial( '/dev/ttyUSB0', 115200 )
+
+	# caffe run mode
 	caffe.set_mode_gpu()
 	
 	net = caffe.Classifier(MODEL_FILE, PRETRAINED,
@@ -60,26 +68,48 @@ if __name__ == '__main__':
 	label = labels[ prediction[0].argmax() ]
 	print( label )
 
-
 	# set the cv2
 	video_source = '1'
 	video_capture = create_capture( video_source )
+
+	pos_pan_increment = 3
+	pos_tilt_increment = 3
+
+	pos_pan = 70
+	pos_tilt = 70
+#	ser.write( '%d %d\n' % (pos_pan, pos_tilt ) )
 	
 	while True:
 		ret, img = video_capture.read()
 		cv2.imshow( 'capture ' + video_source, img )
+
+		# move camera
+		pos_pan = pos_pan + pos_pan_increment
+
+		if pos_pan >= 110:
+			pos_tilt = pos_tilt + pos_tilt_increment
+			pos_pan = 70
+		
+		if pos_tilt >= 110:
+			pos_tilt = 70
+
+#		ser.write( '%d %d\n' % (pos_pan, pos_tilt ) )
 
 		# get the prediction
 		tr_im = transformer.preprocess('data', img)
 		out = net.forward_all(data=np.asarray([ tr_im ]))
 		label = out['prob'][0].argmax(axis=0)
 		
-		print labels[ label ]
+#		print( '%d:%d - %s' % ( pos_pan, pos_tilt, str( labels[ label ] ) ) )
+		print( labels[ label ] )
 
 		ch = 0xFF & cv2.waitKey(1)
 		if ch == 27:
 			break
 		if ch == ord(' '):
+#			ser.write( '90 90\n' )
+#			ser.flush()
+#			ser.close()
 			print( 'got space' )
 	
 	cv2.destroyAllWindows()
